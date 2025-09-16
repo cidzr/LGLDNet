@@ -1,0 +1,115 @@
+model:
+  base_learning_rate: 1e-5   # set to target_lr by starting main.py with '--scale_lr False'
+  target: ldm.models.diffusion.ddpm.Ablation
+  params:
+    l_cond_weight: 0.
+    l_bce_weight: 1.
+    l_dice_weight: 1.
+    loss_type: "smooth_l1"
+    first_stage_key: "segmentation"
+    cond_stage_key: "image"
+    image_size: 32
+    first_stage_trainable: True
+    cond_stage_trainable: True
+    monitor: 'val/IOU'
+    mode: 'max'
+    frozen_encoder: true
+#    ckpt_path: ""
+
+    scheduler_config_ae: # for ImageEncoder and Decoder
+      target: ldm.lr_scheduler.LambdaWarmUpCosineScheduler2
+      params:
+        warm_up_steps: [ 0, 0 ]
+        cycle_lengths: [ 60000, 100000000 ]
+        f_start: [ 10.0, 0.1 ]
+        f_max: [ 10.0, 0.1 ]
+        f_min: [ 0.1, 0.1 ]
+
+    first_stage_config:
+      target: ldm.modules.encoders.modules.VAEInterface
+      params:
+        stage: "first_stage"
+        ckpt_path: "models/LabelEncoder/LabelEncoder_NUDT_VAE.ckpt"
+        ignore_keys: [ decoder ]
+        ddconfig:
+          z_size: 32
+          z_channels: 4
+          resolution: 256
+          in_channels: 1
+          out_ch: 1
+          ch_e: 16
+          ch_d: 16
+          ch_mult: [ 1,2,4,8 ]  # num_down = len(ch_mult)-1
+          num_res_blocks_e: [ 2,2,3,3 ]
+          num_res_blocks_d: [ 3,3,4,4 ]
+          attn_resolutions: [ ]
+          skip_connection: true
+          use_freq_attn: true
+          use_ch_attn: true
+          use_res_z: false
+
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.VAEInterface
+      params:
+        stage: "cond_stage"
+        ddconfig:
+          embed_dim: 4
+          double_z: false
+          z_channels: 4
+          z_size: 32
+          resolution: 256
+          in_channels: 1
+          out_ch: 1
+          ch_e: 16
+          ch_mult: [ 1,2,4,8 ]  # num_down = len(ch_mult)-1
+          num_res_blocks_e: [ 2,2,3,3 ]
+          attn_resolutions: [ ]
+          skip_connection: true
+          use_freq_attn: False
+          use_ch_attn: False
+
+data:
+  target: main.DataModuleFromConfig
+  params:
+    train_batch_size: 8
+    val_batch_size: 8
+    test_batch_size: 1
+    wrap: True
+    train:
+      target: ldm.data.datasets.DataTrain
+      params:
+        name: NUDT
+        size: 256
+        transform_enhance: false
+        use_distance_transform: false
+    validation:
+      target: ldm.data.datasets.DataValidation
+      params:
+        name: NUDT
+        size: 256
+        transform_enhance: false
+        use_distance_transform: false
+    test:
+      target: ldm.data.datasets.DataTest
+      params:
+        name: NUDT
+        size: 256
+        transform_enhance: false
+        use_distance_transform: false
+
+lightning:
+  callbacks:
+    image_logger:
+      target: main.ImageLogger
+      params:
+        batch_frequency: 2000
+        max_images: 8
+        increase_log_steps: False
+
+  trainer:
+    max_epochs: 1500
+    benchmark: True
+    check_val_every_n_epoch: 1
+    accumulate_grad_batches: 1
+    gpus: [ 0 ]
+#    resume_from_checkpoint:

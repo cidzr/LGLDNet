@@ -1,0 +1,100 @@
+model:
+  base_learning_rate: 0.0001
+  target: ldm.models.autoencoder.VQModel
+  params:
+    monitor: val/IOU
+    mode: max
+    image_key: segmentation
+    input_key: segmentation
+    use_quantize: false
+    quant_type: "soft"
+    VQconfig:
+      e_dim: 4
+      n_e: 16
+      tau: 0.07
+      num_codebooks: 1
+      l2_norm: True
+    l_bce_weight: 1.
+    l_dice_weight: 1.
+    l_q_weight: 0.
+    sens_test: false
+#    ckpt_path: ""
+    scheduler_config:
+      target: ldm.lr_scheduler.LambdaWarmUpCosineScheduler2
+      params:
+        warm_up_steps:
+        - 0
+        - 0
+        cycle_lengths:
+        - 60000
+        - 100000000
+        f_start:
+        - 1.0
+        - 0.01
+        f_max:
+        - 1.0
+        - 0.01
+        f_min:
+        - 0.01
+        - 0.01
+    ddconfig:
+      z_size: 32
+      z_channels: 4
+      resolution: 256
+      in_channels: 1
+      out_ch: 1
+      ch_e: 16
+      ch_d: 16
+      ch_mult: [1,2,4,8]
+      num_res_blocks_e: [ 2,2,3,3 ]
+      num_res_blocks_d: [ 3,3,4,4 ]
+      attn_resolutions: [ ]
+      skip_connection: false
+      use_freq_attn: false
+      use_ch_attn: false
+
+data:
+  target: main.DataModuleFromConfig
+  params:
+    train_batch_size: 8
+    val_batch_size: 8
+    test_batch_size: 8
+    wrap: true
+    train:
+      target: ldm.data.datasets.DataTrain
+      params:
+        name: IRSTD
+        size: 256
+        transform_enhance: false
+        use_distance_transform: false
+    validation:
+      target: ldm.data.datasets.DataValidation
+      params:
+        name: IRSTD
+        size: 256
+        transform_enhance: false
+        use_distance_transform: false
+    test:
+      target: ldm.data.datasets.DataTest
+      params:
+        name: IRSTD
+        size: 256
+        transform_enhance: false
+        use_distance_transform: false
+
+lightning:
+  csirstaugbacks:
+    image_logger:
+      target: main.ImageLogger
+      params:
+        batch_frequency: 1000
+        max_images: 8
+        increase_log_steps: true
+  trainer:
+    max_epochs: 1000
+    benchmark: true
+    check_val_every_n_epoch: 1
+    accumulate_grad_batches: 1
+    gpus:
+    - 0
+    accelerator: gpu
