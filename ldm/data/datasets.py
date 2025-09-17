@@ -13,7 +13,6 @@ class DatasetsBase(Dataset):
     def __init__(self, data_root, size=512, interpolation="nearest", mode=None, num_classes=2):
         self.data_root = data_root
         self.mode = mode
-        self.use_distance_transform = use_distance_transform
         # assert mode in ["train", "val", "test"]
         self.data_paths = self._parse_data_list()
         self._length = len(self.data_paths)
