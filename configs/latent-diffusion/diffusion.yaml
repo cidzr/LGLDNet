@@ -121,7 +121,7 @@ data:
     val_batch_size: 8
     test_batch_size: 8
     wrap: True
-    num_workers: 0
+    num_workers: 8
     train:
       target: ldm.data.datasets.DataTrain
       params:
