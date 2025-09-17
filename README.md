@@ -1,5 +1,5 @@
 # LGLDNet
-The official repository for "A LABEL-GUIDED LATENT DIFFUSION NETWORK FOR INFRARED SMALL TARGET DETECTION"
+The official repository for "A Label-Guided Latent Diffusion Network for Infrared Small Target Detection" (being submitted)
 ## Overall Framework
 ![outline](assets/framework.png)
 ## Contributions
