@@ -54,7 +54,7 @@ python main.py --base configs/latent-diffusion/diffusion.yaml --train False
 | Dataset   | mIoU (x10(-2)) | Pd (x10(-2))|  Fa (x10(-6)) |F1 (x10(-2))||
 |-----------|:--------------:|:-----:|:-----:|:-----:|:-----:|
 | IRSTD-1k  |     67.17      |  93.54 |16.55|80.36|[checkpoint](https://drive.google.com/file/d/1L_nJMiJrXdO9fGTC8idFE6RDXZuE5CKZ/view?usp=drive_link)|
-| NUDT-SIRST |     95.20      |  99.15 | 3.29 |97.54||[checkpoint](https://drive.google.com/file/d/17cXBas_BB17l_v4RpJft-Gx8v6TH7SLz/view?usp=drive_link)|
+| NUDT-SIRST |     95.20      |  99.15 | 3.29 |97.54|[checkpoint](https://drive.google.com/file/d/17cXBas_BB17l_v4RpJft-Gx8v6TH7SLz/view?usp=drive_link)|
 
 This code is highly borrowed from [latent-diffusion](https://github.com/YimianDai/open-acm). Thanks to 
 CompVis.
