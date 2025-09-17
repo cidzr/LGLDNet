@@ -58,22 +58,16 @@ data:
       params:
         name: NUDT
         size: 256
-        transform_enhance: false
-        use_distance_transform: false
     validation:
       target: ldm.data.datasets.DataValidation
       params:
         name: NUDT
         size: 256
-        transform_enhance: false
-        use_distance_transform: false
     test:
       target: ldm.data.datasets.DataTest
       params:
         name: NUDT
         size: 256
-        transform_enhance: false
-        use_distance_transform: false
 
 lightning:
   csirstaugbacks:
