@@ -10,13 +10,7 @@ import cv2
 
 
 class DatasetsBase(Dataset):
-    """CVC Dataset Base
-    Notes:
-        - `segmentation` is for the diffusion training stage (range binary -1 and 1)
-        - `image` is for conditional signal to guided final seg-map (range -1 to 1)
-    """
-    def __init__(self, data_root, size=512, interpolation="nearest", mode=None,
-                 num_classes=2, use_distance_transform=False, transform_enhance=False):
+    def __init__(self, data_root, size=512, interpolation="nearest", mode=None, num_classes=2):
         self.data_root = data_root
         self.mode = mode
         self.use_distance_transform = use_distance_transform
@@ -26,22 +20,10 @@ class DatasetsBase(Dataset):
         self.labels = dict(file_path_=[path for path in self.data_paths])
         self.size = size
         self.interpolation = dict(nearest=PIL.Image.NEAREST)[interpolation]   # for segmentation slice
-        if transform_enhance:
-            self.transform = transforms.Compose([
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomVerticalFlip(p=0.5),
-                # transforms.RandomRotation(degrees=30),  # 随机旋转
-                transforms.RandomAffine(degrees=0,
-                                        translate=(0.1, 0.1),  # 平移
-                                        scale=(0.9, 1.1)),  # 缩放
-                transforms.ColorJitter(brightness=0.2, contrast=0.2),
-            ])
-        else:
-            self.transform = transforms.Compose([
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomVerticalFlip(p=0.5),
-                transforms.ColorJitter(brightness=0.2, contrast=0.2),
-            ])
+        self.transform = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomVerticalFlip(p=0.5),
+        ])
 
         print(f"[Dataset]: 2 classes, in {self.mode} mode")
 
@@ -65,35 +47,8 @@ class DatasetsBase(Dataset):
 
         segmentation = (np.array(segmentation)[..., None] > 128).astype(np.uint8)
 
-        if self.use_distance_transform:
-            # ------------------------------------------------------------------------------------------------
-            # If use_distance_transform is True, build a 3‑channel mask:
-            #   channel 0 = original binary mask (-1, +1)
-            #   channel 1 = normalized foreground distance (-1, +1)
-            #   channel 2 = normalized background distance (-1, +1)
-            # ------------------------------------------------------------------------------------------------
-            # compute Euclidean distance for foreground pixels to nearest background
-            fg_dist = cv2.distanceTransform(segmentation, distanceType=cv2.DIST_L2, maskSize=5)
-            # compute Euclidean distance for background pixels to nearest foreground
-            bg_dist = cv2.distanceTransform(1 - segmentation, distanceType=cv2.DIST_L2, maskSize=5)
-
-            # normalize distances to [0,1]
-            fg_dist = fg_dist / (fg_dist.max() + 1e-8)
-            bg_dist = bg_dist / (bg_dist.max() + 1e-8)
-
-            # map all channels into [-1,1]
-            bin_chan = (segmentation.astype(np.float32) * 2) - 1
-            fg_chan = (fg_dist.astype(np.float32) * 2) - 1
-            bg_chan = (bg_dist.astype(np.float32) * 2) - 1
-
-            # stack into H×W×3
-            seg_out = np.stack([bin_chan, fg_chan, bg_chan], axis=-1)
-        else:
-            # ------------------------------------------------------------------------------------------------
-            # Otherwise, just keep the single‐channel binary mask in [-1, +1]
-            # ------------------------------------------------------------------------------------------------
-            seg_bin = segmentation.astype(np.float32)
-            seg_out = (seg_bin * 2) - 1
+        seg_bin = segmentation.astype(np.float32)
+        seg_out = (seg_bin * 2) - 1
 
         # store segmentation
         example["segmentation"] = seg_out
@@ -117,7 +72,7 @@ class DatasetsBase(Dataset):
 
         split_root = self.data_root.replace("images", "split")
 
-        def read_image_list(txt_file, ext=".png"):  # 如果是jpg就改成".jpg"
+        def read_image_list(txt_file, ext=".png"):
             with open(txt_file, 'r') as f:
                 img_names = [line.strip() + ext for line in f.readlines()]
             return [os.path.join(self.data_root, name) for name in img_names]
@@ -131,7 +86,7 @@ class DatasetsBase(Dataset):
         if self.mode == "train":
             return train_imgs
         elif self.mode == "val":
-            return test_imgs  # val 和 test 都用 test.txt 的内容
+            return test_imgs
         elif self.mode == "test":
             return test_imgs
         else:
