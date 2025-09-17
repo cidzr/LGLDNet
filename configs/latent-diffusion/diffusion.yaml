@@ -119,7 +119,7 @@ data:
   params:
     train_batch_size: 8
     val_batch_size: 8
-    test_batch_size: 1
+    test_batch_size: 8
     wrap: True
     num_workers: 0
     train:
