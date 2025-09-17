@@ -16,6 +16,8 @@ conda env create -f environment.yaml
 
 `main.py` accepts a configuration argument `--base` (path to a YAML config) and a boolean `--train` flag. Below are minimal example commands.
 
+Use `python -m visdom.server` for visualization before start training.
+
 ### 1) Train Mask-VAE (pretrained Mask-VAE for [IRSTD-1k](https://drive.google.com/file/d/18alU2uTodp9Sgf-7fIuW6XQDrOqpafIE/view?usp=drive_link) and [NUDT-SIRST](https://drive.google.com/file/d/1v9PWkcjv7WsEaHhxIIJRehxUP6thae_X/view?usp=drive_link))
 
 This runs training with the Mask-VAE configuration.
