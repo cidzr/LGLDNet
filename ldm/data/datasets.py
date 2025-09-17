@@ -10,7 +10,7 @@ import cv2
 
 
 class DatasetsBase(Dataset):
-    def __init__(self, data_root, size=512, interpolation="nearest", mode=None, num_classes=2):
+    def __init__(self, data_root, size=512, interpolation="nearest", mode=None):
         self.data_root = data_root
         self.mode = mode
         # assert mode in ["train", "val", "test"]
