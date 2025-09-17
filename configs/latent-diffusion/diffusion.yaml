@@ -127,22 +127,16 @@ data:
       params:
         name: NUDT
         size: 256
-        transform_enhance: false
-        use_distance_transform: false
     validation:
       target: ldm.data.datasets.DataValidation
       params:
         name: NUDT
         size: 256
-        transform_enhance: false
-        use_distance_transform: false
     test:
       target: ldm.data.datasets.DataTest
       params:
         name: NUDT
         size: 256
-        transform_enhance: false
-        use_distance_transform: false
 
 lightning:
   callbacks:
@@ -154,7 +148,7 @@ lightning:
         increase_log_steps: False
 
   trainer:
-    max_epochs: 500
+    max_epochs: 1000
     benchmark: True
     check_val_every_n_epoch: 1
     accumulate_grad_batches: 1
