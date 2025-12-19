@@ -2069,11 +2069,11 @@ class LGLD(LatentDiffusion):
     def test_step(self, batch, batch_idx):
         with self.ema_scope():
             label = DDPM.get_input(self, batch, self.first_stage_key)
+            out = self.get_input(batch, self.first_stage_key)
 
             torch.cuda.synchronize()
             self.start_evt.record()
 
-            out = self.get_input(batch, self.first_stage_key)
             losses = self.shared_step(batch, suffix='val')
 
             self.end_evt.record()
