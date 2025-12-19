@@ -2149,12 +2149,6 @@ class LGLD(LatentDiffusion):
                 iou_sample, niou_sample, pd_sample, fa_sample, f1_sample))
 
     def _compute_flops(self,batch, z, c, c_cross, res_z, res):
-        """
-        估算一次 apply_model 的 FLOPs。返回 flop_count (int, or None) 与 human-readable table (str or None).
-        Will try fvcore -> ptflops -> None.
-        We wrap apply_model to a small nn.Module taking tensors as separate args because some flop-tools
-        require pure-tensor positional args.
-        """
         x = DDPM.get_input(self, batch, self.first_stage_key).to(self.device)
         img = DDPM.get_input(self, batch, self.cond_stage_key).to(self.device)
         wrapper = AllWrapper(
