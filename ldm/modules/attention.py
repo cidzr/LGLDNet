@@ -218,10 +218,13 @@ class BasicTransformerBlock(nn.Module):
         self.norm3 = nn.LayerNorm(dim)
         self.checkpoint = checkpoint
 
-    def forward(self, x, context=None):
+    def forward(self, x, context=None, disable_ckpt=False):
         if isinstance(context, list):
             context = torch.stack(context, dim=0)
-        return checkpoint(self._forward, (x, context), self.parameters(), self.checkpoint)
+        if self.checkpoint and not disable_ckpt:
+            return checkpoint(self._forward, (x, context), self.parameters(), True)
+        else:
+            return self._forward(x, context)
 
     def _forward(self, x, context=None):
         x = self.attn1(self.norm1(x)) + x
@@ -262,7 +265,7 @@ class SpatialTransformer(nn.Module):
                                               stride=1,
                                               padding=0))
 
-    def forward(self, x, context=None):
+    def forward(self, x, context=None, disable_ckpt=False):
         # note: if no context is given, cross-attention defaults to self-attention
         b, c, h, w = x.shape
         x_in = x
@@ -270,7 +273,7 @@ class SpatialTransformer(nn.Module):
         x = self.proj_in(x)
         x = rearrange(x, 'b c h w -> b (h w) c')
         for block in self.transformer_blocks:
-            x = block(x, context=context)
+            x = block(x, context=context, disable_ckpt=disable_ckpt)
         x = rearrange(x, 'b (h w) c -> b c h w', h=h, w=w)
         x = self.proj_out(x)
         return x + x_in

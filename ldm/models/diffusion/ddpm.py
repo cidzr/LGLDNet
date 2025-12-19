@@ -25,8 +25,9 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import visdom
 
-# for BinaryLDM
-from torch.distributions.binomial import Binomial
+import time
+from typing import Optional
+from fvcore.nn import FlopCountAnalysis, flop_count_table
 
 from ldm.util import log_txt_as_img, exists, default, ismap, isimage, mean_flat, count_params, instantiate_from_config, prepare_latent_to_log
 from ldm.modules.ema import LitEma
@@ -1522,6 +1523,7 @@ class LGLD(LatentDiffusion):
             scheduler_config_ae=lambda step: 1.,
             vis_env=None,
             ddim_test=False,
+            compute_flops=False,
             image_size=32,
             channels=4,
             *args,
@@ -1547,6 +1549,7 @@ class LGLD(LatentDiffusion):
         self.scheduler_config_ae = scheduler_config_ae
         self.ddim_test = ddim_test
         self.ckpt_path = ckpt_path
+        self.compute_flops = compute_flops
 
         # if l_cond_weight > 0:
         #     self.proj_x = Align_proj(channels * image_size ** 2, 256)
@@ -1773,69 +1776,6 @@ class LGLD(LatentDiffusion):
                     torch.pow(x.mean - x_start.mean, 2) / x_start.var
                     + x.var / x_start.var - 1.0 - x.logvar + x_start.logvar,
                     dim=[1, 2, 3])
-    # def get_align_loss(self, x, x_start):
-    #     """
-    #             计算 GT 潜在 x_start 与预测潜在 x_pred 在 SoftVQ 码本后的 KL 散度。
-    #
-    #             Args:
-    #                 x_start: Tensor, GT 潜在 (B, C, H, W) or (B, L, e_dim)（尚未量化）
-    #                 x_pred:  Tensor, 预测潜在 (B, C, H, W) or (B, L, e_dim)
-    #                 tau:     float, Softmax 温度；若为 None，则取 self.first_stage_model.quantize.tau
-    #                 eps:     float, 防止 log(0)
-    #             Returns:
-    #                 kl_loss: 标量 Tensor, 平均 KL 散度
-    #             """
-    #     # ——1. 准备参数——
-    #     quantizer = self.first_stage_model.quantize
-    #
-    #     # 取出子码本数、每个子码本大小、向量维度
-    #     tau = quantizer.tau
-    #     n_cb = quantizer.num_codebooks  # num_codebooks
-    #     n_e = quantizer.n_e  # 每个子码本中码本数
-    #     e_dim = quantizer.e_dim  # 嵌入维度
-    #
-    #     # 码本参数: shape (n_cb, n_e, e_dim)
-    #     # 注意：如果 quantizer.embedding 经过了 l2_norm，直接用它即可
-    #     codebook = quantizer.embedding  # nn.Parameter
-    #
-    #     # ——3. reshape 成 (B, num_codebooks, segment_length, e_dim)——
-    #     def reshape_to_segments(z):
-    #         # z: (B, C, H, W) 或 (B, L, e_dim)
-    #         if z.ndim == 4:
-    #             # (B, C, H, W) -> (B, H*W, C)
-    #             B, C, H, W = z.shape
-    #             z = z.permute(0, 2, 3, 1).reshape(B, -1, C)
-    #         B, L, D = z.shape
-    #         assert D == e_dim, f"维度不匹配: {D} vs {e_dim}"
-    #         assert L % n_cb == 0, f"长度 {L} 无法被 num_codebooks={n_cb} 整除"
-    #         seg_len = L // n_cb
-    #         # (B, n_cb, seg_len, e_dim)
-    #         return z.view(B, n_cb, seg_len, e_dim)
-    #
-    #     zs = reshape_to_segments(x_start)
-    #     zp = reshape_to_segments(x)
-    #
-    #     # ——4. 计算 logits 并做 softmax 得到后验分布——
-    #     # 先把每个子码本维度移到第 0 轴，便于 einsum
-    #     # zs_flat: (n_cb, B*seg_len, e_dim)
-    #     zs_flat = zs.permute(1, 0, 2, 3).reshape(n_cb, -1, e_dim)
-    #     zp_flat = zp.permute(1, 0, 2, 3).reshape(n_cb, -1, e_dim)
-    #
-    #     # codebook: (n_cb, n_e, e_dim)
-    #     # 计算相似度 logits = z · c^T，等价于 -(||z-c||^2) + const
-    #     # 这里直接使用内积
-    #     logits_start = torch.einsum('nbe, nke -> nbk', zs_flat, codebook)
-    #     logits_pred = torch.einsum('nbe, nke -> nbk', zp_flat, codebook)
-    #
-    #     # softmax 得到后验分布： (n_cb, B*seg_len, n_e)
-    #     q_start = F.softmax(logits_start / tau, dim=-1).reshape(-1, n_e)
-    #     q_pred_log = F.log_softmax(logits_pred / tau, dim=-1).reshape(-1, n_e)
-    #
-    #     # ——5. 计算 KL 散度损失——
-    #     # KL(q_start || q_pred) = sum q_start * (log q_start - log q_pred)
-    #     kl_loss = torch.kl_div(q_pred_log, q_start, reduction=1)
-    #
-    #     return kl_loss
 
     def p_losses(self, x_start, cond, t, label, res_z, res, posterior,
                  noise=None, batch_idx=None, **kwargs):
@@ -2114,6 +2054,8 @@ class LGLD(LatentDiffusion):
                 iou_sample, niou_sample, pd_sample, fa_sample, f1_sample))
 
     def on_test_epoch_start(self):
+        self.start_evt = torch.cuda.Event(enable_timing=True)
+        self.end_evt = torch.cuda.Event(enable_timing=True)
         self.iou.reset()
         self.niou.reset()
         self.ROC.reset()
@@ -2127,15 +2069,36 @@ class LGLD(LatentDiffusion):
     def test_step(self, batch, batch_idx):
         with self.ema_scope():
             label = DDPM.get_input(self, batch, self.first_stage_key)
-            out = self.get_input(batch, self.first_stage_key)
 
+            torch.cuda.synchronize()
+            self.start_evt.record()
+
+            out = self.get_input(batch, self.first_stage_key)
             losses = self.shared_step(batch, suffix='val')
+
+            self.end_evt.record()
+            torch.cuda.synchronize()
+            elapsed_ms_shared = self.start_evt.elapsed_time(self.end_evt)  # milliseconds
+            elapsed_s_shared = elapsed_ms_shared / 1000.0
+
             loss_dict, pred = losses['loss_dict'], losses['pred']
             loss_dict = {key + '_ema': loss_dict[key] for key in loss_dict}
             self.iou.update(pred, label)
             self.niou.update(pred, label)
             self.ROC.update(pred, label)
             self.PD_FA.update(pred, label)
+
+            loss_dict['val/inference_time_batch_s'] = float(elapsed_s_shared)
+            loss_dict['val/inference_time_avg_s'] = float(elapsed_s_shared / label.shape[0])
+
+            # --- FLOPs estimation for apply_model (one forward) ---
+            if batch_idx == 0 and self.compute_flops:
+                flop_num = None
+                flop_table = None
+                # Compute FLOPs once for apply_model
+                flops = self._compute_flops(batch, out['z'], out['c'], out['c_crossattn'], out['res_z'], out['res'])
+                loss_dict['val/flops(G)'] = flops['FLOPs(G)']
+                # loss_dict['val/unet flops(G)'] = flops['Unet FLOPs(G)']
 
             if self.ddim_test:
                 cond = dict(c_concat=[out['c']], c_crossattn=out['c_crossattn'])
@@ -2184,6 +2147,42 @@ class LGLD(LatentDiffusion):
             print("\033[35mDDIM Sample: iou_sample: {:.5g}, niou_sample: {:.5g}, PD_sample: {:.5g},\033[0m"
                   "\033[35mFA_sample: {:.5g}, F1_score_sample: {:.5g}\033[0m".format(
                 iou_sample, niou_sample, pd_sample, fa_sample, f1_sample))
+
+    def _compute_flops(self,batch, z, c, c_cross, res_z, res):
+        """
+        估算一次 apply_model 的 FLOPs。返回 flop_count (int, or None) 与 human-readable table (str or None).
+        Will try fvcore -> ptflops -> None.
+        We wrap apply_model to a small nn.Module taking tensors as separate args because some flop-tools
+        require pure-tensor positional args.
+        """
+        x = DDPM.get_input(self, batch, self.first_stage_key).to(self.device)
+        img = DDPM.get_input(self, batch, self.cond_stage_key).to(self.device)
+        wrapper = AllWrapper(
+            self.first_stage_model.encoder,
+            self.cond_stage_model,
+            self.model.diffusion_model,
+            self.first_stage_model.decoder,
+        )
+        B = 1
+        H, W = z.shape[-2:]
+        Cx = z.shape[1]
+        Cc = c.shape[1]
+        N, D = c_cross[0].shape[1:]
+
+        xc = torch.randn(B, Cx + Cc, H, W, device=self.device)
+        t = torch.ones((z.shape[0],), device=self.device, dtype=torch.long) * (self.num_timesteps - 1)
+        context = torch.randn(2, B, N, D, device=self.device)
+        seg_input = torch.randn_like(z, device=self.device)
+        results = {}
+
+        flops = FlopCountAnalysis(wrapper, (x, img, xc, t, context, seg_input, res_z, res))
+        flops_num = int(flops.total())
+        flops_table = flop_count_table(flops)
+        results['FLOPs(G)'] = flops_num / 1e9
+        print(flops_table)
+
+        return results
+
 
     def log_to_visdom(self, value, epoch, win_name, title, xlabel="Epoch", ylabel="Value"):
         if value is not None:
@@ -2400,6 +2399,20 @@ class DiffusionWrapper(pl.LightningModule):
 
         return out
 
+class AllWrapper(nn.Module):
+    def __init__(self, encoder, cond_encoder, unet, decoder):
+        super().__init__()
+        self.encoder = encoder
+        self.cond_encoder = cond_encoder
+        self.unet = unet
+        self.decoder = decoder
+
+    def forward(self, x, img, xc, t, context, seg_input, res_z, res):
+        posterior = self.encoder(x)
+        cond = self.cond_encoder(img)
+        post_pred = self.unet(xc, t, context, None, True)
+        pred = self.decoder(seg_input, res_z, res)
+        return posterior, cond, post_pred, pred
 
 # Version without diffusion
 class Ablation(pl.LightningModule):

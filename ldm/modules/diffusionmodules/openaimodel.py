@@ -77,12 +77,12 @@ class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
     support it as an extra input.
     """
 
-    def forward(self, x, emb, context=None):
+    def forward(self, x, emb, context=None, disable_ckpt=False):
         for layer in self:
             if isinstance(layer, TimestepBlock):
                 x = layer(x, emb)
             elif isinstance(layer, SpatialTransformer):
-                x = layer(x, context)
+                x = layer(x, context, disable_ckpt=disable_ckpt)
             else:
                 x = layer(x)
         return x
@@ -708,7 +708,7 @@ class UNetModel(nn.Module):
         self.middle_block.apply(convert_module_to_f32)
         self.output_blocks.apply(convert_module_to_f32)
 
-    def forward(self, x, timesteps=None, context=None, y=None, **kwargs):
+    def forward(self, x, timesteps=None, context=None, y=None, disable_ckpt=False, **kwargs):
         """
         Apply the model to an input batch.
         :param x: an [N x C x ...] Tensor of inputs.
@@ -731,14 +731,14 @@ class UNetModel(nn.Module):
         h = x.type(self.dtype)
 
         for module in self.input_blocks:
-            h = module(h, emb, context)
+            h = module(h, emb, context, disable_ckpt=disable_ckpt)
             hs.append(h)
 
-        h = self.middle_block(h, emb, context)
+        h = self.middle_block(h, emb, context, disable_ckpt=disable_ckpt)
 
         for module in self.output_blocks:
             h = th.cat([h, hs.pop()], dim=1)
-            h = module(h, emb, context)
+            h = module(h, emb, context, disable_ckpt=disable_ckpt)
         h = h.type(x.dtype)
 
         if self.predict_codebook_ids:
