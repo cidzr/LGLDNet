@@ -17,13 +17,13 @@ model:
     cond_stage_key: "image"
     conditioning_key: "hybrid"
     image_size: 32
-    channels: 4
+    channels: 8
     first_stage_trainable: True
     cond_stage_trainable: True
     scale_by_std: True
     use_ema: True
     load_only_unet: False
-    pred_posterior: False
+    pred_posterior: True
     parameterization: 'x0'
     monitor: 'val/IOU'
     mode: 'max'
@@ -31,7 +31,7 @@ model:
     ddim_test: False
     compute_flops: True
     vis_env: " Unet ch 64"
-    ckpt_path: "logs/VAE_based/IRSTD/VAE_pred_sample/checkpoints/epoch=000255.ckpt"
+#    ckpt_path: ""
 
     scheduler_config: # 10000 warmup steps, for Unet
       target: ldm.lr_scheduler.LambdaLinearScheduler
@@ -55,8 +55,8 @@ model:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
         image_size: 32
-        in_channels: 8
-        out_channels: 4
+        in_channels: 12
+        out_channels: 8
         model_channels: 64
         attention_resolutions: [ 1,2,4,8 ]
         num_res_blocks: 2
