@@ -8,7 +8,9 @@
 | 4   |     ✔     |  ✔   |  ✘  |   66.18    |   92.25   |   12.53   |   79.65   |   92.25   | **99.15** |   5.45   |   95.97   |
 | 5   |     ✔     |  ✘   |  ✔  |   65.21    |   90.48   |   28.62   |   78.94   |   94.64   |   98.94   | **2.78** |   97.24   |
 | 6   |     ✔     |  ✔   |  ✔  | **67.17**  | **93.54** |   16.55   | **80.36** | **95.20** | **99.15** |   3.29   | **97.54** |
+
 The supplemented ablation table demonstrates that posterior prediction, KLDA and FAE each contribute independently and complementarily. Posterior prediction alone improves mIoU, Fa and F1 over the baseline (No. 3 vs. 1), showing the intrinsic benefit of predicting the latent posterior. The full configuration (post-pred + KLDA + FAE, No. 6) yields the best overall performance, demonstrating that the three components are necessary and jointly optimal rather than redundant.
+
 ## Quantitative analysis of FLOPs, inference speed, and parameter quantity of diffusion-based IRSTD methods
 | Dataset                                | DCFRNet(w/o diffusion model) |    DCFRNet(w diffusion model)    |          IRSTD-Diff           |                    LDLGNet(Ours)                     |
 |----------------------------------------|:----------------------------:|:--------------------------------:|:-----------------------------:|:----------------------------------------------------:|
@@ -16,7 +18,9 @@ The supplemented ablation table demonstrates that posterior prediction, KLDA and
 | FLOPs for 1 diffusion time step (Unet) |              -               |              172 G               |            67.87 G            |                        5.22 G                        |
 | Parameters                             |           66.14 M            |          66.14 + 115 M           |            30.01 M            |                       48.21 M                        |
 | Runtime (per image)                    |           44.52 ms           | 9681.83 ms (200 ddim time steps) | 9014.56 (200 ddim time steps) | 83.57 ms (single step)<br/>993.20 ms (20 ddim steps) |
+
 Quantitatively, LDLGNet substantially reduces computational cost compared to pixel-space diffusion. Total FLOPs of our model are 22 G vs 178 G for DCFRNet; per-step Unet FLOPs drop from 172 G to 5.22 G (≈33× reduction). While parameter count is moderate (48.21 M), pixel-space diffusion adds a large Unet (≈+115 M). Importantly, runtime is diffusion-step dependent: pixel-space methods require ≈9 s for 200 DDIM steps, whereas our model runs in 83.6 ms (single step) and ≈993 ms for 20 steps, showing practical, order-of-magnitude runtime benefits when using the latent diffusion. In addition, the difference in detection metrics between our method using 20 step DDIM sampling and single step sampling is very small, which allows our method to avoid time-consuming denoising processes.
+
 # LGLDNet
 The official repository for "A Label-Guided Latent Diffusion Network for Infrared Small Target Detection" (being submitted)
 ## Overall Framework
