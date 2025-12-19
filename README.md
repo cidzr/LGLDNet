@@ -22,7 +22,7 @@ The supplemented ablation table demonstrates that posterior prediction, KLDA and
 Quantitatively, LDLGNet substantially reduces computational cost compared to pixel-space diffusion. Total FLOPs of our model are 22 G vs 178 G for DCFRNet. Per-step Unet FLOPs drop from 172 G to 5.22 G (≈33× reduction). Importantly, runtime is diffusion-step dependent: pixel-space methods require ≈9 s for 200 DDIM steps, whereas our model runs in 83.6 ms (single step) and ≈993 ms for 20 steps, showing practical, order-of-magnitude runtime benefits when using the latent diffusion. In addition, the difference in detection metrics between our method using 20 step DDIM sampling and single step sampling is very small, which allows our method to avoid time-consuming denoising processes.
 
 # LGLDNet
-The official repository for "A Label-Guided Latent Diffusion Network for Infrared Small Target Detection" (being submitted)
+The official repository for "A Label-Guided Latent Diffusion Network for Infrared Small Target Detection" (under review)
 ## Overall Framework
 ![outline](assets/framework.png)
 ## Contributions
