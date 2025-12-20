@@ -12,7 +12,7 @@
 The supplemented ablation table demonstrates that posterior prediction, KLDA and FAE each contribute independently and complementarily. Posterior prediction alone improves mIoU, Fa and F1 over the baseline (No. 3 vs. 1), showing the intrinsic benefit of predicting the latent posterior. The full configuration (post-pred + KLDA + FAE, No. 6) yields the best overall performance, demonstrating that the three components are necessary and jointly optimal rather than redundant.
 
 ## Quantitative analysis of FLOPs, inference speed, and parameter quantity of diffusion-based IRSTD methods
-| Dataset                                | DCFRNet(w/o diffusion model) |    DCFRNet(w diffusion model)    |          IRSTD-Diff           |                    LDLGNet(Ours)                     |
+| Method                                | DCFRNet(w/o diffusion model) |    DCFRNet(w diffusion model)    |          IRSTD-Diff           |                    LDLGNet(Ours)                     |
 |----------------------------------------|:----------------------------:|:--------------------------------:|:-----------------------------:|:----------------------------------------------------:|
 | FLOPs                                  |            178 G             |                -                 |               -               |                         22 G                         |
 | FLOPs for 1 diffusion time step (Unet) |              -               |              172 G               |            67.87 G            |                        5.22 G                        |
